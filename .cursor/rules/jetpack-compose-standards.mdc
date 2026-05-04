@@ -1,0 +1,28 @@
+---
+description: Jetpack Compose standards for Android projects
+globs: **/*.kt
+alwaysApply: false
+---
+
+# Jetpack Compose Standards
+
+When editing Compose code:
+
+- Use `collectAsStateWithLifecycle`, not `collectAsState`, for ViewModel or lifecycle-bound flows.
+- Use `rememberSaveable` for user input and UI state that should survive configuration changes.
+- Use `LazyColumn`, `LazyRow`, or paging lazy APIs for lists.
+- Provide stable `key` and useful `contentType` values for lazy list items.
+- Use `MaterialTheme.colorScheme`, project theme colors, and typography instead of arbitrary hard-coded colors/fonts.
+- Keep interactive touch targets at least 48dp.
+- Add `contentDescription` or semantics for meaningful icons, images, buttons, and custom click targets.
+- Do not perform network, database, file, or heavy CPU work directly in Composables.
+- Keep business logic in ViewModels/domain layers, not UI functions.
+- Add previews for important screens and reusable components when practical.
+
+Before delivery, search touched Compose files for:
+
+- `collectAsState(`
+- `remember { mutableStateOf`
+- `LazyColumn` or `LazyRow` without stable keys for dynamic items
+- empty or missing accessibility descriptions on meaningful controls
+- hard-coded secrets, tokens, or credentials

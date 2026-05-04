@@ -1,0 +1,26 @@
+---
+description: Require planning before large Android changes
+alwaysApply: true
+---
+
+# Planning Before Large Changes
+
+Before implementing large, risky, or cross-module changes, create a short plan and ask for approval.
+
+Use a plan when the work:
+
+- touches multiple modules, shared code, navigation, build logic, persistence, auth, networking, or payments
+- changes public contracts, data models, API payloads, or persisted state
+- introduces a new screen, feature flow, architecture layer, library, or permission
+- could affect CI, release builds, security, performance, or accessibility
+
+The plan should include:
+
+- target modules/files
+- implementation approach
+- expected data and state flow
+- edge cases and failure scenarios
+- test and verification commands
+- risks or open questions
+
+After approval, keep edits scoped to the plan. If new scope appears, pause and explain the change before continuing.
