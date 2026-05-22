@@ -28,6 +28,7 @@ Use these standards for Android work unless project instructions say otherwise.
 - Add `contentDescription` or semantics for meaningful images, icons, buttons, and custom click targets.
 - Keep interactive touch targets at least 48dp.
 - Do not perform network, database, file, or heavy CPU work directly in Composables.
+- For design-matching UI (from screenshots/Figma/assets), run a measurement pass before coding: capture exact bounds, paddings, gaps, and icon/text sizes; account for transparent padding in assets; implement ratio-based constants from the reference frame; add a preview with matching frame size/background; and validate with a screenshot comparison before finalizing.
 
 ## Security
 

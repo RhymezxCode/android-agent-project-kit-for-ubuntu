@@ -18,6 +18,7 @@ When editing Compose code:
 - Do not perform network, database, file, or heavy CPU work directly in Composables.
 - Keep business logic in ViewModels/domain layers, not UI functions.
 - Add previews for important screens and reusable components when practical.
+- For design-matching UI (from screenshots/Figma/assets), run a measurement pass before coding: capture exact bounds, paddings, gaps, and icon/text sizes; account for transparent padding in assets; implement ratio-based constants from the reference frame; add a preview with matching frame size/background; and validate with a screenshot comparison before finalizing.
 
 Before delivery, search touched Compose files for:
 
@@ -25,4 +26,5 @@ Before delivery, search touched Compose files for:
 - `remember { mutableStateOf`
 - `LazyColumn` or `LazyRow` without stable keys for dynamic items
 - empty or missing accessibility descriptions on meaningful controls
+- screenshot/Figma-based UI implemented without measured spacing ratios or reference-size preview verification
 - hard-coded secrets, tokens, or credentials

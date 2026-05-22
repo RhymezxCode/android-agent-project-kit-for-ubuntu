@@ -28,6 +28,7 @@ These instructions apply to agents working in this Android repository.
 - Add content descriptions and semantics for interactive or meaningful UI.
 - Keep touch targets at least 48dp.
 - Add previews for important screens and reusable UI components when practical.
+- For design-matching UI (from screenshots/Figma/assets), run a measurement pass before coding: capture exact bounds, paddings, gaps, and icon/text sizes; account for transparent padding in assets; implement ratio-based constants from the reference frame; add a preview with matching frame size/background; and validate with a screenshot comparison before finalizing.
 
 ## Security
 

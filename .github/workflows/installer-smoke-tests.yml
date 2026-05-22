@@ -1,0 +1,157 @@
+name: Installer Smoke Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  unix-smoke:
+    name: Unix Smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Shell Script Syntax
+        run: |
+          bash -n install-to-project.sh
+          bash -n install-to-project-mac.sh
+          bash -n uninstall-from-project.sh
+          bash -n uninstall-from-project-mac.sh
+          bash -n doctor.sh
+          bash -n doctor-mac.sh
+
+      - name: Full Install + Doctor + Uninstall
+        run: |
+          set -euo pipefail
+          TEST_DIR="$(mktemp -d)"
+          PROJECT_DIR="${TEST_DIR}/android-project"
+          mkdir -p "${PROJECT_DIR}"
+          cd "${PROJECT_DIR}"
+          git init -q
+
+          "${GITHUB_WORKSPACE}/install-to-project.sh" .
+          "${GITHUB_WORKSPACE}/doctor.sh" .
+
+          # Repeat install to verify exclude idempotency (no duplicate lines)
+          "${GITHUB_WORKSPACE}/install-to-project.sh" .
+          "${GITHUB_WORKSPACE}/doctor.sh" .
+
+          # Uninstall and verify generated files are removed.
+          "${GITHUB_WORKSPACE}/uninstall-from-project.sh" .
+          [ ! -f AGENTS.md ]
+          [ ! -f .claude/CLAUDE.md ]
+          [ ! -f .codex/skills/android-agent-standards/SKILL.md ]
+          [ ! -f .cursor/rules/jetpack-compose-standards.mdc ]
+          [ ! -f .github/pull_request_template.md ]
+
+          # Ensure .git/info/exclude no longer contains kit entries.
+          if [ -f .git/info/exclude ]; then
+            ! grep -Fxq "AGENTS.md" .git/info/exclude
+            ! grep -Fxq ".claude/" .git/info/exclude
+            ! grep -Fxq ".codex/" .git/info/exclude
+            ! grep -Fxq ".cursor/" .git/info/exclude
+            ! grep -Fxq ".github/pull_request_template.md" .git/info/exclude
+          fi
+
+      - name: Selective Tools + Backup + Dry Run
+        run: |
+          set -euo pipefail
+
+          TEST_DIR="$(mktemp -d)"
+          PROJECT_DIR="${TEST_DIR}/android-project"
+          mkdir -p "${PROJECT_DIR}"
+          cd "${PROJECT_DIR}"
+          git init -q
+
+          echo "custom" > AGENTS.md
+          "${GITHUB_WORKSPACE}/install-to-project.sh" --target . --tools codex,cursor --backup-existing --no-exclude
+
+          ls AGENTS.md.bak.*
+          [ -f .codex/skills/android-agent-standards/SKILL.md ]
+          [ -f .cursor/rules/jetpack-compose-standards.mdc ]
+          [ ! -f .claude/CLAUDE.md ]
+          [ ! -f .github/pull_request_template.md ]
+          "${GITHUB_WORKSPACE}/doctor.sh" --target . --tools codex,cursor --no-exclude-check
+
+          DRY_RUN_DIR="${TEST_DIR}/dry-run-project"
+          mkdir -p "${DRY_RUN_DIR}"
+          cd "${DRY_RUN_DIR}"
+          git init -q
+          "${GITHUB_WORKSPACE}/install-to-project.sh" --target . --dry-run
+          [ ! -f AGENTS.md ]
+
+  windows-smoke:
+    name: Windows Smoke
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install + Doctor + Uninstall
+        shell: pwsh
+        run: |
+          $TestDir = Join-Path $env:RUNNER_TEMP ("kit-smoke-" + [guid]::NewGuid().ToString())
+          $ProjectDir = Join-Path $TestDir "android-project"
+          New-Item -ItemType Directory -Path $ProjectDir -Force | Out-Null
+          Set-Location $ProjectDir
+          git init | Out-Null
+
+          & "$env:GITHUB_WORKSPACE\install-to-project-windows.ps1" -TargetDir "."
+          & "$env:GITHUB_WORKSPACE\doctor-windows.ps1" -TargetDir "."
+
+          # Repeat install to verify exclude idempotency.
+          & "$env:GITHUB_WORKSPACE\install-to-project-windows.ps1" -TargetDir "."
+          & "$env:GITHUB_WORKSPACE\doctor-windows.ps1" -TargetDir "."
+
+          & "$env:GITHUB_WORKSPACE\uninstall-from-project-windows.ps1" -TargetDir "."
+
+          if (Test-Path ".\AGENTS.md") { throw "AGENTS.md should be removed." }
+          if (Test-Path ".\.claude\CLAUDE.md") { throw ".claude\CLAUDE.md should be removed." }
+          if (Test-Path ".\.codex\skills\android-agent-standards\SKILL.md") { throw "Codex SKILL should be removed." }
+          if (Test-Path ".\.cursor\rules\jetpack-compose-standards.mdc") { throw "Cursor rule should be removed." }
+          if (Test-Path ".\.github\pull_request_template.md") { throw "PR template should be removed." }
+
+          $Exclude = ".\.git\info\exclude"
+          if (Test-Path $Exclude) {
+            $Lines = Get-Content $Exclude
+            if ($Lines -contains "AGENTS.md") { throw "Exclude still contains AGENTS.md" }
+            if ($Lines -contains ".claude/") { throw "Exclude still contains .claude/" }
+            if ($Lines -contains ".codex/") { throw "Exclude still contains .codex/" }
+            if ($Lines -contains ".cursor/") { throw "Exclude still contains .cursor/" }
+            if ($Lines -contains ".github/pull_request_template.md") { throw "Exclude still contains PR template entry" }
+          }
+
+      - name: Selective Tools + Backup + Dry Run
+        shell: pwsh
+        run: |
+          $TestDir = Join-Path $env:RUNNER_TEMP ("kit-tools-" + [guid]::NewGuid().ToString())
+          $ProjectDir = Join-Path $TestDir "android-project"
+          New-Item -ItemType Directory -Path $ProjectDir -Force | Out-Null
+          Set-Location $ProjectDir
+          git init | Out-Null
+
+          Set-Content -Path ".\AGENTS.md" -Value "custom"
+          & "$env:GITHUB_WORKSPACE\install-to-project-windows.ps1" -TargetDir "." -Tools "codex,cursor" -BackupExisting -NoExclude
+          & "$env:GITHUB_WORKSPACE\doctor-windows.ps1" -TargetDir "." -Tools "codex,cursor" -NoExcludeCheck
+
+          if (-not (Get-ChildItem ".\AGENTS.md.bak.*" -ErrorAction SilentlyContinue)) {
+            throw "Expected AGENTS.md backup file was not created."
+          }
+          if (Test-Path ".\.claude\CLAUDE.md") { throw ".claude should not be installed for codex,cursor tools selection." }
+          if (Test-Path ".\.github\pull_request_template.md") { throw ".github PR template should not be installed for codex,cursor tools selection." }
+
+          $DryRunDir = Join-Path $TestDir "dry-run-project"
+          New-Item -ItemType Directory -Path $DryRunDir -Force | Out-Null
+          Set-Location $DryRunDir
+          git init | Out-Null
+          & "$env:GITHUB_WORKSPACE\install-to-project-windows.ps1" -TargetDir "." -DryRun
+          if (Test-Path ".\AGENTS.md") { throw "Dry run should not create AGENTS.md." }
